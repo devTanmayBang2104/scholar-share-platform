@@ -5,7 +5,7 @@ import MaterialCard from '@/components/Materials/MaterialCard';
 import MaterialFilters, { MaterialFiltersState } from '@/components/Materials/MaterialFilters';
 import { materialsService } from '@/services/api';
 import { Material } from '@/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 const Materials = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -26,11 +26,12 @@ const Materials = () => {
         setError(null);
         
         const response = await materialsService.getAll();
+        console.log('Fetched materials:', response);
         setMaterials(response);
         setFilteredMaterials(response);
       } catch (err: any) {
-        setError('Failed to load materials. Please try again later.');
         console.error('Error fetching materials:', err);
+        setError('Failed to load materials. Please try again later.');
       } finally {
         setIsLoading(false);
       }
@@ -123,8 +124,9 @@ const Materials = () => {
             <Loader2 className="h-8 w-8 animate-spin text-scholar-primary" />
           </div>
         ) : error ? (
-          <div className="bg-red-50 text-red-700 p-6 rounded-md">
-            <p className="font-medium">{error}</p>
+          <div className="bg-red-50 text-red-700 p-6 rounded-md flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+            <p>{error}</p>
           </div>
         ) : filteredMaterials.length === 0 ? (
           <div className="bg-gray-50 text-gray-600 p-10 rounded-lg text-center">

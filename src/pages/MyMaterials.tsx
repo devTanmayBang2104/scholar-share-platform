@@ -30,10 +30,11 @@ const MyMaterials = () => {
         setError(null);
         
         const response = await materialsService.getUserMaterials(user._id);
+        console.log('Fetched user materials:', response);
         setMaterials(response);
       } catch (err: any) {
-        setError('Failed to load your materials. Please try again later.');
         console.error('Error fetching user materials:', err);
+        setError('Failed to load your materials. Please try again later.');
       } finally {
         setIsLoading(false);
       }
@@ -110,6 +111,7 @@ const MyMaterials = () => {
                 key={material._id}
                 material={material}
                 onVote={handleVote}
+                onDelete={() => handleDelete(material._id)}
               />
             ))}
           </div>
