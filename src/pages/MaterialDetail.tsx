@@ -43,7 +43,7 @@ const MaterialDetail = () => {
         setError(null);
         
         const response = await materialsService.getById(id);
-        setMaterial(response);
+        setMaterial(response as Material);
       } catch (err: any) {
         setError('Failed to load material details. Please try again later.');
         console.error('Error fetching material:', err);
@@ -80,7 +80,7 @@ const MaterialDetail = () => {
           upvotes: voteType === 'upvote' ? prev.upvotes + 1 : prev.upvotes,
           downvotes: voteType === 'downvote' ? prev.downvotes + 1 : prev.downvotes,
           voted: [...prev.voted, user?._id || ''],
-        };
+        } as Material;
       });
       
       toast.success(`Successfully ${voteType === 'upvote' ? 'upvoted' : 'downvoted'} the material`);
@@ -148,7 +148,7 @@ const MaterialDetail = () => {
   // Get uploader name
   const uploaderName = typeof material.uploadedBy === 'string' 
     ? 'Unknown User' 
-    : material.uploadedBy.name;
+    : (material.uploadedBy?.name || 'Unknown User');
   
   // Check if user has already voted
   const hasUserVoted = user ? material.voted.includes(user._id) : false;
@@ -258,7 +258,7 @@ const MaterialDetail = () => {
             <h3 className="font-semibold mb-4">PDF Preview</h3>
             <div className="aspect-video bg-gray-100 flex items-center justify-center rounded-md border border-gray-200 overflow-hidden">
               <iframe 
-                src={`${material.fileUrl}#toolbar=0`} 
+                src={material.fileUrl} 
                 className="w-full h-[500px]" 
                 title={`PDF preview of ${material.title}`}
                 loading="lazy"

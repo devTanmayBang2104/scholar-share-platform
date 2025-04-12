@@ -46,7 +46,7 @@ const MaterialCard = ({ material, onVote, onDelete }: MaterialCardProps) => {
   // Get uploader name (handle string ID or user object)
   const uploaderName = typeof material.uploadedBy === 'string' 
     ? 'Unknown User' 
-    : material.uploadedBy?.name || 'Unknown User';
+    : (material.uploadedBy?.name || 'Unknown User');
 
   const handleVote = async (voteType: 'upvote' | 'downvote') => {
     if (!isAuthenticated) {
@@ -204,10 +204,10 @@ const MaterialCard = ({ material, onVote, onDelete }: MaterialCardProps) => {
           </Dialog>
 
           <Button variant="default" size="sm" asChild>
-            <a href={material.fileUrl} target="_blank" rel="noopener noreferrer">
+            <Link to={`/materials/${material._id}`} className="flex items-center">
               <Eye className="h-4 w-4 mr-1" />
               View PDF
-            </a>
+            </Link>
           </Button>
         </div>
       </CardFooter>

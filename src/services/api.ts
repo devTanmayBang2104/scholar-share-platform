@@ -64,9 +64,9 @@ const mockMaterials = [
     _id: 'material1',
     title: 'Database Systems Notes',
     description: 'Comprehensive notes covering SQL, normalization, and transaction processing',
-    category: 'Handwritten Notes',
-    year: '3rd Year',
-    fileUrl: 'https://loremflickr.com/640/480/document',
+    category: 'Handwritten Notes' as const,
+    year: '3rd Year' as const,
+    fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
     fileName: 'database_systems_notes.pdf',
     uploadedBy: {
       _id: 'user1',
@@ -83,9 +83,9 @@ const mockMaterials = [
     _id: 'material2',
     title: 'Data Structures Handbook',
     description: 'Complete guide to arrays, linked lists, trees, and graphs with examples',
-    category: 'Handbooks',
-    year: '2nd Year',
-    fileUrl: 'https://loremflickr.com/640/480/document',
+    category: 'Handbooks' as const,
+    year: '2nd Year' as const,
+    fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
     fileName: 'data_structures_handbook.pdf',
     uploadedBy: {
       _id: 'user1',
@@ -102,9 +102,9 @@ const mockMaterials = [
     _id: 'material3',
     title: 'Operating Systems Previous Year Papers',
     description: 'Last 5 years question papers with solutions',
-    category: 'Previous Year Papers',
-    year: '3rd Year',
-    fileUrl: 'https://loremflickr.com/640/480/document',
+    category: 'Previous Year Papers' as const,
+    year: '3rd Year' as const,
+    fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
     fileName: 'os_previous_papers.pdf',
     uploadedBy: {
       _id: 'user2',
@@ -247,13 +247,16 @@ export const materialsService = {
   create: async (materialData: FormData) => {
     try {
       // Mock create
+      const category = materialData.get('category') as Material['category'] || 'Handbooks';
+      const year = materialData.get('year') as Material['year'] || '1st Year';
+      
       const newMaterial = {
         _id: `material${mockMaterials.length + 1}`,
         title: materialData.get('title') as string,
         description: materialData.get('description') as string,
-        category: materialData.get('category') as string,
-        year: materialData.get('year') as string,
-        fileUrl: 'https://loremflickr.com/640/480/document',
+        category,
+        year,
+        fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
         fileName: 'new_material.pdf',
         uploadedBy: {
           _id: 'user1',
@@ -283,12 +286,15 @@ export const materialsService = {
         throw new Error('Material not found');
       }
       
+      const category = materialData.get('category') as Material['category'] || mockMaterials[materialIndex].category;
+      const year = materialData.get('year') as Material['year'] || mockMaterials[materialIndex].year;
+      
       const updatedMaterial = {
         ...mockMaterials[materialIndex],
         title: materialData.get('title') as string || mockMaterials[materialIndex].title,
         description: materialData.get('description') as string || mockMaterials[materialIndex].description,
-        category: materialData.get('category') as string || mockMaterials[materialIndex].category,
-        year: materialData.get('year') as string || mockMaterials[materialIndex].year,
+        category,
+        year,
         updatedAt: new Date().toISOString()
       };
       
