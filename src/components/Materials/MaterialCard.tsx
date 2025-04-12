@@ -12,6 +12,7 @@ import {
   Eye,
   Calendar,
   User,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Material } from '@/types';
@@ -25,9 +26,10 @@ import { Textarea } from '@/components/ui/textarea';
 interface MaterialCardProps {
   material: Material;
   onVote: (materialId: string, newVoteCount: number) => void;
+  onDelete?: (materialId: string) => Promise<void>;
 }
 
-const MaterialCard = ({ material, onVote }: MaterialCardProps) => {
+const MaterialCard = ({ material, onVote, onDelete }: MaterialCardProps) => {
   const { user, isAuthenticated } = useAuth();
   const [isVoting, setIsVoting] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
@@ -44,7 +46,7 @@ const MaterialCard = ({ material, onVote }: MaterialCardProps) => {
   // Get uploader name (handle string ID or user object)
   const uploaderName = typeof material.uploadedBy === 'string' 
     ? 'Unknown User' 
-    : material.uploadedBy.name;
+    : material.uploadedBy?.name || 'Unknown User';
 
   const handleVote = async (voteType: 'upvote' | 'downvote') => {
     if (!isAuthenticated) {
@@ -62,7 +64,7 @@ const MaterialCard = ({ material, onVote }: MaterialCardProps) => {
       const response = await materialsService.vote(material._id, voteType);
       
       // Update local state via callback
-      onVote(material._id, voteType === 'upvote' ? material.upvotes + 1 : material.downvotes + 1);
+      onVote(material._id, voteType === 'upvote' ? material.upvotes + 1 : material.upvotes);
       
       toast.success(`Successfully ${voteType === 'upvote' ? 'upvoted' : 'downvoted'} the material`);
     } catch (error) {
@@ -93,6 +95,16 @@ const MaterialCard = ({ material, onVote }: MaterialCardProps) => {
       console.error('Error reporting:', error);
     } finally {
       setIsReporting(false);
+    }
+  };
+
+  const handleDeleteClick = async () => {
+    if (onDelete) {
+      try {
+        await onDelete(material._id);
+      } catch (error) {
+        console.error('Error in delete handler:', error);
+      }
     }
   };
 
@@ -151,6 +163,13 @@ const MaterialCard = ({ material, onVote }: MaterialCardProps) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {onDelete && (
+            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={handleDeleteClick}>
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete
+            </Button>
+          )}
+          
           <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm">

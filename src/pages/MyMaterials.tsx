@@ -111,7 +111,7 @@ const MyMaterials = () => {
                 key={material._id}
                 material={material}
                 onVote={handleVote}
-                onDelete={() => handleDelete(material._id)}
+                onDelete={handleDelete}
               />
             ))}
           </div>

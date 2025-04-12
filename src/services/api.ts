@@ -67,13 +67,15 @@ const mockMaterials = [
     category: 'Handwritten Notes',
     year: '3rd Year',
     fileUrl: 'https://loremflickr.com/640/480/document',
-    thumbnailUrl: 'https://loremflickr.com/320/240/document',
-    author: {
+    fileName: 'database_systems_notes.pdf',
+    uploadedBy: {
       _id: 'user1',
       name: 'John Doe'
     },
     upvotes: 42,
+    downvotes: 5,
     voted: [],
+    reports: [],
     createdAt: '2025-03-01T10:30:00Z',
     updatedAt: '2025-03-01T10:30:00Z'
   },
@@ -84,13 +86,15 @@ const mockMaterials = [
     category: 'Handbooks',
     year: '2nd Year',
     fileUrl: 'https://loremflickr.com/640/480/document',
-    thumbnailUrl: 'https://loremflickr.com/320/240/document',
-    author: {
+    fileName: 'data_structures_handbook.pdf',
+    uploadedBy: {
       _id: 'user1',
       name: 'John Doe'
     },
     upvotes: 28,
+    downvotes: 2,
     voted: [],
+    reports: [],
     createdAt: '2025-02-15T14:20:00Z',
     updatedAt: '2025-02-15T14:20:00Z'
   },
@@ -101,13 +105,15 @@ const mockMaterials = [
     category: 'Previous Year Papers',
     year: '3rd Year',
     fileUrl: 'https://loremflickr.com/640/480/document',
-    thumbnailUrl: 'https://loremflickr.com/320/240/document',
-    author: {
+    fileName: 'os_previous_papers.pdf',
+    uploadedBy: {
       _id: 'user2',
       name: 'Jane Smith'
     },
     upvotes: 55,
+    downvotes: 3,
     voted: [],
+    reports: [],
     createdAt: '2025-01-20T09:15:00Z',
     updatedAt: '2025-01-20T09:15:00Z'
   }
@@ -226,7 +232,12 @@ export const materialsService = {
   
   getUserMaterials: async (userId: string) => {
     try {
-      return mockMaterials.filter(m => m.author._id === userId);
+      return mockMaterials.filter(m => {
+        if (typeof m.uploadedBy === 'object' && m.uploadedBy !== null) {
+          return m.uploadedBy._id === userId;
+        }
+        return m.uploadedBy === userId;
+      });
     } catch (error) {
       console.error('Get user materials error:', error);
       throw error;
@@ -243,13 +254,15 @@ export const materialsService = {
         category: materialData.get('category') as string,
         year: materialData.get('year') as string,
         fileUrl: 'https://loremflickr.com/640/480/document',
-        thumbnailUrl: 'https://loremflickr.com/320/240/document',
-        author: {
+        fileName: 'new_material.pdf',
+        uploadedBy: {
           _id: 'user1',
           name: 'John Doe'
         },
         upvotes: 0,
+        downvotes: 0,
         voted: [],
+        reports: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -313,11 +326,11 @@ export const materialsService = {
       }
       
       const material = mockMaterials[materialIndex];
-      const newUpvotes = voteType === 'upvote' ? material.upvotes + 1 : Math.max(0, material.upvotes - 1);
       
       const updatedMaterial = {
         ...material,
-        upvotes: newUpvotes,
+        upvotes: voteType === 'upvote' ? material.upvotes + 1 : material.upvotes,
+        downvotes: voteType === 'downvote' ? material.downvotes + 1 : material.downvotes,
         voted: [...material.voted, 'current-user-id'],
         updatedAt: new Date().toISOString()
       };
@@ -344,4 +357,3 @@ export const materialsService = {
 };
 
 export default api;
-
