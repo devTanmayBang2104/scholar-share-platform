@@ -44,9 +44,12 @@ const MaterialCard = ({ material, onVote, onDelete }: MaterialCardProps) => {
   const timeAgo = formatDistanceToNow(uploadDate, { addSuffix: true });
   
   // Get uploader name (handle string ID or user object)
-  const uploaderName = typeof material.uploadedBy === 'string' 
-    ? 'Unknown User' 
-    : (material.uploadedBy?.name || 'Unknown User');
+  let uploaderName = 'Unknown User';
+  if (typeof material.uploadedBy === 'string') {
+    uploaderName = 'Unknown User';
+  } else if (material.uploadedBy && 'name' in material.uploadedBy) {
+    uploaderName = material.uploadedBy.name;
+  }
 
   const handleVote = async (voteType: 'upvote' | 'downvote') => {
     if (!isAuthenticated) {

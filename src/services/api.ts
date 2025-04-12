@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 import { toast } from 'sonner';
-import { User, Material } from '@/types';
+import { User, Material, PartialUser } from '@/types';
 
 // Base API configuration
 const API_URL = 'https://api.scholar-share.com/api'; // Replace with your actual API URL
@@ -71,7 +71,7 @@ const mockMaterials = [
     uploadedBy: {
       _id: 'user1',
       name: 'John Doe'
-    },
+    } as PartialUser,
     upvotes: 42,
     downvotes: 5,
     voted: [],
@@ -90,7 +90,7 @@ const mockMaterials = [
     uploadedBy: {
       _id: 'user1',
       name: 'John Doe'
-    },
+    } as PartialUser,
     upvotes: 28,
     downvotes: 2,
     voted: [],
@@ -109,7 +109,7 @@ const mockMaterials = [
     uploadedBy: {
       _id: 'user2',
       name: 'Jane Smith'
-    },
+    } as PartialUser,
     upvotes: 55,
     downvotes: 3,
     voted: [],
@@ -210,7 +210,7 @@ export const materialsService = {
     try {
       // In a real app, this would be filtered on the server
       console.log('Returning mock materials data');
-      return mockMaterials;
+      return mockMaterials as Material[];
     } catch (error) {
       console.error('Get all materials error:', error);
       throw error;
@@ -223,7 +223,7 @@ export const materialsService = {
       if (!material) {
         throw new Error('Material not found');
       }
-      return material;
+      return material as Material;
     } catch (error) {
       console.error('Get material by id error:', error);
       throw error;
@@ -237,7 +237,7 @@ export const materialsService = {
           return m.uploadedBy._id === userId;
         }
         return m.uploadedBy === userId;
-      });
+      }) as Material[];
     } catch (error) {
       console.error('Get user materials error:', error);
       throw error;
@@ -246,7 +246,18 @@ export const materialsService = {
   
   create: async (materialData: FormData) => {
     try {
-      // Mock create
+      // Get file from FormData
+      const file = materialData.get('file') as File;
+      
+      // Create a unique filename
+      const fileExtension = file.name.split('.').pop();
+      const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
+      
+      // In a real app, we'd upload to a storage service here
+      // For mock data, we'll simulate it by creating a file URL
+      // Generate a blob URL from the file to simulate a real file upload
+      const fileUrl = URL.createObjectURL(file);
+      
       const category = materialData.get('category') as Material['category'] || 'Handbooks';
       const year = materialData.get('year') as Material['year'] || '1st Year';
       
@@ -256,19 +267,19 @@ export const materialsService = {
         description: materialData.get('description') as string,
         category,
         year,
-        fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
-        fileName: 'new_material.pdf',
+        fileUrl: fileUrl, // Use the generated URL instead of the default one
+        fileName: file.name,
         uploadedBy: {
           _id: 'user1',
           name: 'John Doe'
-        },
+        } as PartialUser,
         upvotes: 0,
         downvotes: 0,
         voted: [],
         reports: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      };
+      } as Material;
       
       mockMaterials.push(newMaterial);
       
@@ -289,14 +300,27 @@ export const materialsService = {
       const category = materialData.get('category') as Material['category'] || mockMaterials[materialIndex].category;
       const year = materialData.get('year') as Material['year'] || mockMaterials[materialIndex].year;
       
+      // Check if there's a new file
+      const file = materialData.get('file') as File | null;
+      let fileUrl = mockMaterials[materialIndex].fileUrl;
+      let fileName = mockMaterials[materialIndex].fileName;
+      
+      if (file) {
+        // Create blob URL for the new file
+        fileUrl = URL.createObjectURL(file);
+        fileName = file.name;
+      }
+      
       const updatedMaterial = {
         ...mockMaterials[materialIndex],
         title: materialData.get('title') as string || mockMaterials[materialIndex].title,
         description: materialData.get('description') as string || mockMaterials[materialIndex].description,
         category,
         year,
+        fileUrl,
+        fileName,
         updatedAt: new Date().toISOString()
-      };
+      } as Material;
       
       mockMaterials[materialIndex] = updatedMaterial;
       
@@ -339,7 +363,7 @@ export const materialsService = {
         downvotes: voteType === 'downvote' ? material.downvotes + 1 : material.downvotes,
         voted: [...material.voted, 'current-user-id'],
         updatedAt: new Date().toISOString()
-      };
+      } as Material;
       
       mockMaterials[materialIndex] = updatedMaterial;
       

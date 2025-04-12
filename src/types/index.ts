@@ -11,6 +11,11 @@ export interface User {
   updatedAt: string;
 }
 
+export interface PartialUser {
+  _id: string;
+  name: string;
+}
+
 export interface Material {
   _id: string;
   title: string;
@@ -19,7 +24,7 @@ export interface Material {
   year: '1st Year' | '2nd Year' | '3rd Year' | '4th Year';
   fileUrl: string;
   fileName: string;
-  uploadedBy: User | string;
+  uploadedBy: User | PartialUser | string;
   upvotes: number;
   downvotes: number;
   voted: string[];

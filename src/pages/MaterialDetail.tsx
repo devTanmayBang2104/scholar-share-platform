@@ -14,7 +14,8 @@ import {
   Eye, 
   Calendar,
   User,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -146,9 +147,12 @@ const MaterialDetail = () => {
   const timeAgo = formatDistanceToNow(uploadDate, { addSuffix: true });
   
   // Get uploader name
-  const uploaderName = typeof material.uploadedBy === 'string' 
-    ? 'Unknown User' 
-    : (material.uploadedBy?.name || 'Unknown User');
+  let uploaderName = 'Unknown User';
+  if (typeof material.uploadedBy === 'string') {
+    uploaderName = 'Unknown User';
+  } else if (material.uploadedBy && 'name' in material.uploadedBy) {
+    uploaderName = material.uploadedBy.name;
+  }
   
   // Check if user has already voted
   const hasUserVoted = user ? material.voted.includes(user._id) : false;
@@ -245,9 +249,9 @@ const MaterialDetail = () => {
                 </Dialog>
 
                 <Button asChild>
-                  <a href={material.fileUrl} target="_blank" rel="noopener noreferrer">
-                    <Eye className="h-4 w-4 mr-2" />
-                    View PDF
+                  <a href={material.fileUrl} target="_blank" rel="noopener noreferrer" download={material.fileName}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF
                   </a>
                 </Button>
               </div>
