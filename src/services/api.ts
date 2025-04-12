@@ -1,10 +1,41 @@
 
 import axios from 'axios';
 import { toast } from 'sonner';
-import { User, Material, PartialUser } from '@/types';
+import { User, Material, PartialUser, MongoConfig, Report } from '@/types';
+import { MongoClient, ObjectId } from 'mongodb';
 
 // Base API configuration
-const API_URL = 'https://api.scholar-share.com/api'; // Replace with your actual API URL
+const API_URL = 'https://api.scholar-share.com/api';
+
+// MongoDB configuration
+const mongoConfig: MongoConfig = {
+  uri: 'mongodb+srv://username:password@cluster0.mongodb.net/scholar_share?retryWrites=true&w=majority',
+  dbName: 'scholar_share',
+  collections: {
+    users: 'users',
+    materials: 'materials',
+    reports: 'reports'
+  }
+};
+
+// MongoDB client instance
+let mongoClient: MongoClient | null = null;
+
+// Connect to MongoDB
+const connectToMongo = async (): Promise<MongoClient> => {
+  if (mongoClient) return mongoClient;
+  
+  try {
+    mongoClient = new MongoClient(mongoConfig.uri);
+    await mongoClient.connect();
+    console.log('Connected to MongoDB successfully');
+    return mongoClient;
+  } catch (error) {
+    console.error('Failed to connect to MongoDB:', error);
+    toast.error('Failed to connect to database');
+    throw error;
+  }
+};
 
 // Create axios instance
 const api = axios.create({
@@ -44,94 +75,22 @@ api.interceptors.response.use(
   }
 );
 
-// Mock data
-const mockUsers = [
-  {
-    _id: 'user1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    password: 'password123', // This would be hashed in a real app
-    profilePicture: '',
-    bio: 'Computer Science student passionate about web development',
-    points: 75,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
-
-const mockMaterials = [
-  {
-    _id: 'material1',
-    title: 'Database Systems Notes',
-    description: 'Comprehensive notes covering SQL, normalization, and transaction processing',
-    category: 'Handwritten Notes' as const,
-    year: '3rd Year' as const,
-    fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
-    fileName: 'database_systems_notes.pdf',
-    uploadedBy: {
-      _id: 'user1',
-      name: 'John Doe'
-    } as PartialUser,
-    upvotes: 42,
-    downvotes: 5,
-    voted: [],
-    reports: [],
-    createdAt: '2025-03-01T10:30:00Z',
-    updatedAt: '2025-03-01T10:30:00Z'
-  },
-  {
-    _id: 'material2',
-    title: 'Data Structures Handbook',
-    description: 'Complete guide to arrays, linked lists, trees, and graphs with examples',
-    category: 'Handbooks' as const,
-    year: '2nd Year' as const,
-    fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
-    fileName: 'data_structures_handbook.pdf',
-    uploadedBy: {
-      _id: 'user1',
-      name: 'John Doe'
-    } as PartialUser,
-    upvotes: 28,
-    downvotes: 2,
-    voted: [],
-    reports: [],
-    createdAt: '2025-02-15T14:20:00Z',
-    updatedAt: '2025-02-15T14:20:00Z'
-  },
-  {
-    _id: 'material3',
-    title: 'Operating Systems Previous Year Papers',
-    description: 'Last 5 years question papers with solutions',
-    category: 'Previous Year Papers' as const,
-    year: '3rd Year' as const,
-    fileUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
-    fileName: 'os_previous_papers.pdf',
-    uploadedBy: {
-      _id: 'user2',
-      name: 'Jane Smith'
-    } as PartialUser,
-    upvotes: 55,
-    downvotes: 3,
-    voted: [],
-    reports: [],
-    createdAt: '2025-01-20T09:15:00Z',
-    updatedAt: '2025-01-20T09:15:00Z'
-  }
-];
-
 // Auth services
 export const authService = {
   register: async (userData: { name: string; email: string; password: string }) => {
-    // In a real app, this would be an API call
     try {
-      // Mock registration
-      const existingUser = mockUsers.find(u => u.email === userData.email);
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const usersCollection = db.collection(mongoConfig.collections.users);
+      
+      // Check if user already exists
+      const existingUser = await usersCollection.findOne({ email: userData.email });
       if (existingUser) {
         throw new Error('User already exists');
       }
-
+      
+      // Create new user
       const newUser = {
-        _id: `user${mockUsers.length + 1}`,
         ...userData,
         profilePicture: '',
         bio: '',
@@ -140,11 +99,16 @@ export const authService = {
         updatedAt: new Date().toISOString()
       };
       
-      mockUsers.push(newUser);
+      const result = await usersCollection.insertOne(newUser);
+      const createdUser = {
+        _id: result.insertedId.toString(),
+        ...newUser
+      };
       
-      const token = 'mock-token-' + Date.now();
+      // Generate token (in real app, use JWT or similar)
+      const token = 'mongo-token-' + Date.now();
       
-      return { user: newUser, token };
+      return { user: createdUser as User, token };
     } catch (error) {
       console.error('Registration error:', error);
       throw { response: { data: { message: error instanceof Error ? error.message : 'Registration failed' } } };
@@ -152,22 +116,35 @@ export const authService = {
   },
   
   login: async (credentials: { email: string; password: string }) => {
-    // In a real app, this would be an API call
     try {
-      // Mock login
-      const user = mockUsers.find(u => u.email === credentials.email);
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const usersCollection = db.collection(mongoConfig.collections.users);
+      
+      // Find user by email
+      const user = await usersCollection.findOne({ email: credentials.email });
       if (!user) {
         throw new Error('User not found');
       }
       
+      // Check password (in real app, use bcrypt or similar)
       if (user.password !== credentials.password) {
         throw new Error('Invalid password');
       }
       
-      const { password, ...userWithoutPassword } = user;
-      const token = 'mock-token-' + Date.now();
+      // Convert MongoDB _id to string
+      const userObj = {
+        ...user,
+        _id: user._id.toString()
+      };
       
-      return { user: userWithoutPassword, token };
+      // Remove password from user object
+      const { password, ...userWithoutPassword } = userObj;
+      
+      // Generate token
+      const token = 'mongo-token-' + Date.now();
+      
+      return { user: userWithoutPassword as User, token };
     } catch (error) {
       console.error('Login error:', error);
       throw { response: { data: { message: error instanceof Error ? error.message : 'Login failed' } } };
@@ -181,22 +158,38 @@ export const authService = {
   
   updateProfile: async (userId: string, userData: { name?: string; bio?: string; profilePicture?: File }) => {
     try {
-      // Mock update
-      const userIndex = mockUsers.findIndex(u => u._id === userId);
-      if (userIndex === -1) {
-        throw new Error('User not found');
-      }
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const usersCollection = db.collection(mongoConfig.collections.users);
       
-      const updatedUser = {
-        ...mockUsers[userIndex],
-        ...(userData.name && { name: userData.name }),
-        ...(userData.bio && { bio: userData.bio }),
+      // Create update object
+      const updateData: any = {
         updatedAt: new Date().toISOString()
       };
       
-      mockUsers[userIndex] = updatedUser;
+      if (userData.name) updateData.name = userData.name;
+      if (userData.bio) updateData.bio = userData.bio;
       
-      return updatedUser;
+      // TODO: Handle profile picture upload to a real storage service
+      // For now, we'll skip this since we don't have a storage solution set up
+      
+      // Update user in MongoDB
+      await usersCollection.updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: updateData }
+      );
+      
+      // Get updated user
+      const updatedUser = await usersCollection.findOne({ _id: new ObjectId(userId) });
+      if (!updatedUser) {
+        throw new Error('User not found after update');
+      }
+      
+      // Convert MongoDB _id to string
+      return {
+        ...updatedUser,
+        _id: updatedUser._id.toString()
+      } as User;
     } catch (error) {
       console.error('Update profile error:', error);
       throw { response: { data: { message: error instanceof Error ? error.message : 'Update profile failed' } } };
@@ -208,9 +201,49 @@ export const authService = {
 export const materialsService = {
   getAll: async (filters = {}) => {
     try {
-      // In a real app, this would be filtered on the server
-      console.log('Returning mock materials data');
-      return mockMaterials as Material[];
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const materialsCollection = db.collection(mongoConfig.collections.materials);
+      
+      // Get all materials
+      const materials = await materialsCollection.find().toArray();
+      
+      // Convert MongoDB _id to string and populate partial user info
+      const formattedMaterials = await Promise.all(materials.map(async (material) => {
+        let uploadedBy: PartialUser | string = material.uploadedBy;
+        
+        // If uploadedBy is a string (user ID), get user info
+        if (typeof material.uploadedBy === 'string') {
+          try {
+            const usersCollection = db.collection(mongoConfig.collections.users);
+            const user = await usersCollection.findOne({ _id: new ObjectId(material.uploadedBy) });
+            if (user) {
+              uploadedBy = {
+                _id: user._id.toString(),
+                name: user.name
+              };
+            }
+          } catch (err) {
+            console.error('Error getting user info:', err);
+          }
+        } else if (material.uploadedBy && typeof material.uploadedBy === 'object' && material.uploadedBy._id) {
+          // If uploadedBy is already an object but _id is ObjectId, convert it
+          uploadedBy = {
+            _id: material.uploadedBy._id.toString(),
+            name: material.uploadedBy.name
+          };
+        }
+        
+        return {
+          ...material,
+          _id: material._id.toString(),
+          uploadedBy,
+          reports: material.reports || [],
+          voted: material.voted || []
+        } as unknown as Material;
+      }));
+      
+      return formattedMaterials;
     } catch (error) {
       console.error('Get all materials error:', error);
       throw error;
@@ -219,11 +252,46 @@ export const materialsService = {
   
   getById: async (id: string) => {
     try {
-      const material = mockMaterials.find(m => m._id === id);
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const materialsCollection = db.collection(mongoConfig.collections.materials);
+      
+      // Find material by ID
+      const material = await materialsCollection.findOne({ _id: new ObjectId(id) });
       if (!material) {
         throw new Error('Material not found');
       }
-      return material as Material;
+      
+      // Similar to getAll, handle the uploadedBy field
+      let uploadedBy: PartialUser | string = material.uploadedBy;
+      
+      if (typeof material.uploadedBy === 'string') {
+        try {
+          const usersCollection = db.collection(mongoConfig.collections.users);
+          const user = await usersCollection.findOne({ _id: new ObjectId(material.uploadedBy) });
+          if (user) {
+            uploadedBy = {
+              _id: user._id.toString(),
+              name: user.name
+            };
+          }
+        } catch (err) {
+          console.error('Error getting user info:', err);
+        }
+      } else if (material.uploadedBy && typeof material.uploadedBy === 'object' && material.uploadedBy._id) {
+        uploadedBy = {
+          _id: material.uploadedBy._id.toString(),
+          name: material.uploadedBy.name
+        };
+      }
+      
+      return {
+        ...material,
+        _id: material._id.toString(),
+        uploadedBy,
+        reports: material.reports || [],
+        voted: material.voted || []
+      } as unknown as Material;
     } catch (error) {
       console.error('Get material by id error:', error);
       throw error;
@@ -232,12 +300,27 @@ export const materialsService = {
   
   getUserMaterials: async (userId: string) => {
     try {
-      return mockMaterials.filter(m => {
-        if (typeof m.uploadedBy === 'object' && m.uploadedBy !== null) {
-          return m.uploadedBy._id === userId;
-        }
-        return m.uploadedBy === userId;
-      }) as Material[];
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const materialsCollection = db.collection(mongoConfig.collections.materials);
+      
+      // Find materials by user ID
+      const materials = await materialsCollection.find({
+        $or: [
+          { "uploadedBy": userId },
+          { "uploadedBy._id": userId }
+        ]
+      }).toArray();
+      
+      // Format materials
+      const formattedMaterials = materials.map(material => ({
+        ...material,
+        _id: material._id.toString(),
+        reports: material.reports || [],
+        voted: material.voted || []
+      })) as unknown as Material[];
+      
+      return formattedMaterials;
     } catch (error) {
       console.error('Get user materials error:', error);
       throw error;
@@ -246,6 +329,10 @@ export const materialsService = {
   
   create: async (materialData: FormData) => {
     try {
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const materialsCollection = db.collection(mongoConfig.collections.materials);
+      
       // Get file from FormData
       const file = materialData.get('file') as File;
       
@@ -253,37 +340,44 @@ export const materialsService = {
       const fileExtension = file.name.split('.').pop();
       const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
       
-      // In a real app, we'd upload to a storage service here
-      // For mock data, we'll simulate it by creating a file URL
-      // Generate a blob URL from the file to simulate a real file upload
+      // TODO: In a real app, upload the file to a storage service
+      // For now, we'll create blob URL for demo purposes
       const fileUrl = URL.createObjectURL(file);
+      
+      // Get user info from localStorage
+      const userJson = localStorage.getItem('user');
+      const user = userJson ? JSON.parse(userJson) : { _id: 'unknown-user', name: 'Unknown User' };
       
       const category = materialData.get('category') as Material['category'] || 'Handbooks';
       const year = materialData.get('year') as Material['year'] || '1st Year';
       
+      // Create new material document
       const newMaterial = {
-        _id: `material${mockMaterials.length + 1}`,
         title: materialData.get('title') as string,
         description: materialData.get('description') as string,
         category,
         year,
-        fileUrl: fileUrl, // Use the generated URL instead of the default one
+        fileUrl,
         fileName: file.name,
         uploadedBy: {
-          _id: 'user1',
-          name: 'John Doe'
-        } as PartialUser,
+          _id: user._id,
+          name: user.name
+        },
         upvotes: 0,
         downvotes: 0,
         voted: [],
         reports: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      } as Material;
+      };
       
-      mockMaterials.push(newMaterial);
+      // Insert into MongoDB
+      const result = await materialsCollection.insertOne(newMaterial);
       
-      return newMaterial;
+      return {
+        ...newMaterial,
+        _id: result.insertedId.toString()
+      } as unknown as Material;
     } catch (error) {
       console.error('Create material error:', error);
       throw error;
@@ -292,39 +386,54 @@ export const materialsService = {
   
   update: async (id: string, materialData: FormData) => {
     try {
-      const materialIndex = mockMaterials.findIndex(m => m._id === id);
-      if (materialIndex === -1) {
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const materialsCollection = db.collection(mongoConfig.collections.materials);
+      
+      // Find existing material
+      const existingMaterial = await materialsCollection.findOne({ _id: new ObjectId(id) });
+      if (!existingMaterial) {
         throw new Error('Material not found');
       }
       
-      const category = materialData.get('category') as Material['category'] || mockMaterials[materialIndex].category;
-      const year = materialData.get('year') as Material['year'] || mockMaterials[materialIndex].year;
+      // Prepare update data
+      const updateData: any = {
+        updatedAt: new Date().toISOString()
+      };
       
-      // Check if there's a new file
+      // Update fields if provided
+      if (materialData.get('title')) updateData.title = materialData.get('title');
+      if (materialData.get('description')) updateData.description = materialData.get('description');
+      if (materialData.get('category')) updateData.category = materialData.get('category');
+      if (materialData.get('year')) updateData.year = materialData.get('year');
+      
+      // Handle file upload if provided
       const file = materialData.get('file') as File | null;
-      let fileUrl = mockMaterials[materialIndex].fileUrl;
-      let fileName = mockMaterials[materialIndex].fileName;
-      
       if (file) {
-        // Create blob URL for the new file
-        fileUrl = URL.createObjectURL(file);
-        fileName = file.name;
+        // TODO: In a real app, upload to storage service and update URL
+        updateData.fileUrl = URL.createObjectURL(file);
+        updateData.fileName = file.name;
       }
       
-      const updatedMaterial = {
-        ...mockMaterials[materialIndex],
-        title: materialData.get('title') as string || mockMaterials[materialIndex].title,
-        description: materialData.get('description') as string || mockMaterials[materialIndex].description,
-        category,
-        year,
-        fileUrl,
-        fileName,
-        updatedAt: new Date().toISOString()
-      } as Material;
+      // Update in MongoDB
+      await materialsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData }
+      );
       
-      mockMaterials[materialIndex] = updatedMaterial;
+      // Get updated material
+      const updatedMaterial = await materialsCollection.findOne({ _id: new ObjectId(id) });
+      if (!updatedMaterial) {
+        throw new Error('Material not found after update');
+      }
       
-      return updatedMaterial;
+      // Format response
+      return {
+        ...updatedMaterial,
+        _id: updatedMaterial._id.toString(),
+        reports: updatedMaterial.reports || [],
+        voted: updatedMaterial.voted || []
+      } as unknown as Material;
     } catch (error) {
       console.error('Update material error:', error);
       throw error;
@@ -333,15 +442,24 @@ export const materialsService = {
   
   delete: async (id: string) => {
     try {
-      const materialIndex = mockMaterials.findIndex(m => m._id === id);
-      if (materialIndex === -1) {
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const materialsCollection = db.collection(mongoConfig.collections.materials);
+      
+      // Find material before deletion
+      const material = await materialsCollection.findOne({ _id: new ObjectId(id) });
+      if (!material) {
         throw new Error('Material not found');
       }
       
-      const deletedMaterial = mockMaterials[materialIndex];
-      mockMaterials.splice(materialIndex, 1);
+      // Delete from MongoDB
+      await materialsCollection.deleteOne({ _id: new ObjectId(id) });
       
-      return deletedMaterial;
+      // Format response
+      return {
+        ...material,
+        _id: material._id.toString()
+      } as unknown as Material;
     } catch (error) {
       console.error('Delete material error:', error);
       throw error;
@@ -350,24 +468,56 @@ export const materialsService = {
   
   vote: async (id: string, voteType: 'upvote' | 'downvote') => {
     try {
-      const materialIndex = mockMaterials.findIndex(m => m._id === id);
-      if (materialIndex === -1) {
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const materialsCollection = db.collection(mongoConfig.collections.materials);
+      
+      // Get user ID from localStorage
+      const userJson = localStorage.getItem('user');
+      const user = userJson ? JSON.parse(userJson) : { _id: 'unknown-user' };
+      
+      // Find material
+      const material = await materialsCollection.findOne({ _id: new ObjectId(id) });
+      if (!material) {
         throw new Error('Material not found');
       }
       
-      const material = mockMaterials[materialIndex];
+      // Check if user already voted
+      const voted = material.voted || [];
+      if (voted.includes(user._id)) {
+        throw new Error('You have already voted on this material');
+      }
       
-      const updatedMaterial = {
-        ...material,
-        upvotes: voteType === 'upvote' ? material.upvotes + 1 : material.upvotes,
-        downvotes: voteType === 'downvote' ? material.downvotes + 1 : material.downvotes,
-        voted: [...material.voted, 'current-user-id'],
-        updatedAt: new Date().toISOString()
-      } as Material;
+      // Update vote count
+      const updateData: any = {
+        voted: [...voted, user._id]
+      };
       
-      mockMaterials[materialIndex] = updatedMaterial;
+      if (voteType === 'upvote') {
+        updateData.upvotes = (material.upvotes || 0) + 1;
+      } else {
+        updateData.downvotes = (material.downvotes || 0) + 1;
+      }
       
-      return updatedMaterial;
+      // Update in MongoDB
+      await materialsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData }
+      );
+      
+      // Get updated material
+      const updatedMaterial = await materialsCollection.findOne({ _id: new ObjectId(id) });
+      if (!updatedMaterial) {
+        throw new Error('Material not found after update');
+      }
+      
+      // Format response
+      return {
+        ...updatedMaterial,
+        _id: updatedMaterial._id.toString(),
+        reports: updatedMaterial.reports || [],
+        voted: updatedMaterial.voted || []
+      } as unknown as Material;
     } catch (error) {
       console.error('Vote material error:', error);
       throw error;
@@ -376,8 +526,40 @@ export const materialsService = {
   
   report: async (id: string, reason: string) => {
     try {
-      // Mock reporting
-      console.log(`Material ${id} reported for reason: ${reason}`);
+      const client = await connectToMongo();
+      const db = client.db(mongoConfig.dbName);
+      const materialsCollection = db.collection(mongoConfig.collections.materials);
+      const reportsCollection = db.collection(mongoConfig.collections.reports);
+      
+      // Get user ID from localStorage
+      const userJson = localStorage.getItem('user');
+      const user = userJson ? JSON.parse(userJson) : { _id: 'unknown-user' };
+      
+      // Create report
+      const report = {
+        materialId: id,
+        reportedBy: user._id,
+        reason,
+        status: 'pending' as const,
+        createdAt: new Date().toISOString()
+      };
+      
+      // Insert report
+      const result = await reportsCollection.insertOne(report);
+      
+      // Update material with report reference
+      await materialsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { 
+          $push: { 
+            reports: {
+              _id: result.insertedId.toString(),
+              ...report
+            } 
+          } 
+        }
+      );
+      
       return { success: true, message: 'Material reported successfully' };
     } catch (error) {
       console.error('Report material error:', error);

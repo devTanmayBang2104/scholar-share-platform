@@ -56,3 +56,14 @@ export interface MaterialsState {
   isLoading: boolean;
   error: string | null;
 }
+
+// MongoDB connection config interface
+export interface MongoConfig {
+  uri: string;
+  dbName: string;
+  collections: {
+    users: string;
+    materials: string;
+    reports: string;
+  };
+}
